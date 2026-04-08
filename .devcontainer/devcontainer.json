@@ -1,0 +1,13 @@
+{
+  "name": "Espace Clos - Piscine",
+  "image": "mcr.microsoft.com/devcontainers/base:debian",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "platformio.platformio-ide"
+      ]
+    }
+  },
+  "remoteUser": "vscode"
+}
