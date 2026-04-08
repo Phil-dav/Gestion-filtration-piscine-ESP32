@@ -208,7 +208,7 @@ void loop()
     static int dernierJour = loadLastDay();
     int jourPourPompe = -1;
 
-    // On récupère le jour (Priorité GPS, sinon WiFi)
+    // Source de la date : GPS si signal frais (< 5s), sinon NTP via WiFi
     if (gps.date.isValid() && gps.date.age() < 5000)
     {
         jourPourPompe = gps.date.day();

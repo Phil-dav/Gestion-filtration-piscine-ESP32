@@ -20,7 +20,10 @@ void initPumpManager()
     forceStopPump(); // Sécurité au démarrage
 }
 
-void setPumpRequest(bool state) // point d'entrée unique pour donner un ordre à la pompe.
+// Point d'entrée unique pour exprimer une intention (MARCHE/ARRET).
+// Ne commande pas directement le relais — c'est updatePumpSystem() qui
+// applique la demande après vérification de sécurité.
+void setPumpRequest(bool state)
 {
     if (state == pumpRequest)
         return; // Rien de nouveau, on sort
@@ -78,7 +81,7 @@ void updatePumpSystem()
             pumpState = pumpRequest;
             setRelay(PIN_RELAY_POMPE, pumpState);
 
-            // Historique des modes (MANU uniquement — AUTO géré dans main.cpp)
+            // Historique des modes (MANU uniquement — AUTO géré dans main.cpp, bloc "HISTORIQUE AUTO" en loop())
             if (getCurrentMode() == MODE_MANU) {
                 float dH = getDecimalHour();
                 if (dH >= 0.0f) mhStart(pumpState ? 2 : 3, dH);

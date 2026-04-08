@@ -47,7 +47,8 @@ static String fmtHM(float hours) { int total = (int)(hours * 60.0f + 0.5f);
     return String(buf);
 }
 
-// Formate une borne horaire en "Xh" ou "Xh30"  ex: 6.5 → "6h30", 18.0 → "18h"
+// Formate une borne horaire en "Xh" ou "Xh30" — uniquement les demi-heures exactes (0.5, 1.5…)
+// ex: 6.5 → "6h30", 18.0 → "18h". Une valeur comme 6.33 affichera "6h" (pas de quart d'heure).
 static String fmtH(float h) {
     int m = (int)(h * 60.0f + 0.5f) % 60;
     return String((int)h) + (m > 0 ? "h30" : "h");

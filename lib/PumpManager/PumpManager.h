@@ -12,7 +12,8 @@ void updatePumpSystem();
 // L'interrupteur logiciel : pour demander à la pompe de s'allumer ou s'éteindre
 void setPumpRequest(bool state);
 
-// L'arrêt d'urgence physique
+// Coupure directe du relais via le driver PCF, sans passer par updatePumpSystem().
+// Utilisé au démarrage et en cas d'alarme sécurité.
 void forceStopPump();
 
 // Pour savoir si la pompe tourne réellement (utile pour l'OLED ou le Web)

@@ -3,9 +3,9 @@
 #include "pcf8574_config.h"
 
 OperationMode getCurrentMode() {
-    // Anti-rebond logiciel : exige 3 lectures identiques consécutives
-    // avant d'accepter un changement de mode.
-    // Protège contre les lectures corrompues dues aux écritures PCF simultanées.
+    // Anti-rebond logiciel : exige 3 lectures identiques consécutives avant d'accepter un changement.
+    // Protège contre les glitches PCF lors d'écritures simultanées.
+    // 3 lectures = compromis réactivité/stabilité (appelé à chaque loop ~50ms → délai ~150ms max).
     static OperationMode confirmedMode = MODE_OFF;
     static OperationMode candidate     = MODE_OFF;
     static uint8_t stableCount         = 0;

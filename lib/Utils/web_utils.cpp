@@ -58,7 +58,7 @@ void startWebServer()
         // lire la variable globale currentMode via extern.
         // Cela supprime le couplage fragile entre main.cpp et web_utils.cpp,
         // et garantit que le mode affiché correspond toujours à l'état physique réel.
-        // Note : MODE_OFF=0, MODE_MANU=1, MODE_AUTO=2 (voir ModeManager.h)
+        // getModeString() retourne directement la chaîne lisible — les valeurs numériques n'ont pas d'importance ici.
         String modeStr = getModeString();
         // ────────────────────────────────────────────────────────────────────────
 

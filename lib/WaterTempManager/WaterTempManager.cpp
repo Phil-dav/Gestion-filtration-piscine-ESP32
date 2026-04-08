@@ -41,12 +41,13 @@ float calculateTargetHours(float temp)
         return 2.0f; // Filtration fixe hivernage
     }
 
-    // ── 4. Eau chaude (24 – 28.5°C) : T/2 + 1h, arrondi à 0.5h ─────────────
+    // ── Cas 4/5 : Température normale (10.5–28.5°C) — formule T/2, arrondie à 0.5h ──────────
+    // ── Eau chaude (≥ 24°C) : T/2 + 1h bonus ────────────────────────────────────────────────
     float raw;
     if (temp >= 24.0f) {
         raw = (temp / 2.0f) + 1.0f;
     } else {
-        // ── 5. Standard (10.5 – 24°C) : règle T/2, arrondi à 0.5h ───────────
+        // ── Standard (< 24°C) : T/2 ──────────────────────────────────────────────────────────
         raw = temp / 2.0f;
     }
 

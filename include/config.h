@@ -9,7 +9,7 @@
 #define PCF8574_ADDRESS 0x21
 #define DS18B20_PIN 4 // Capteur de température DS18B20 connecté à la broche GPIO4 (D4) de l'ESP32
 
-#define PIN_LEVEL_SENSOR 34 // detecteur  niveau define d'eau
+#define PIN_LEVEL_SENSOR 34 // Détecteur de niveau d'eau (GPIO34)
 
 #define GPS_RX_PIN 16
 #define GPS_TX_PIN 17

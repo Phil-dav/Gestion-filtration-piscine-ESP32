@@ -9,8 +9,9 @@ bool isWaterLevelOk() {
     int val = analogRead(PIN_LEVEL_SENSOR); //
     uint32_t now = millis();
 
-    // 1. DÉTERMINATION DE L'ÉTAT BRUT (Hystérésis)
-    // Si on est dans la zone "morte" (entre 1800 et 2200), on ne change rien à l'état brut
+    // 1. HYSTÉRÉSIS — Maintien de la décision précédente en zone morte (1800–2200)
+    // rawState est initialisé à la décision déjà en cours (targetState), pas à la lecture capteur.
+    // Il ne sera modifié que si le signal franchit un seuil (< 1800 ou > 2200).
     bool rawState = targetState; 
     if (val < THRESHOLD_LOW) {
         rawState = false; // Trop bas

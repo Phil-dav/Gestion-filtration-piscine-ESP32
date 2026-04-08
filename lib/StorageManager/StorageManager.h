@@ -13,8 +13,8 @@ void saveLastDay(int day);   // Sauvegarde le dernier jour connu (anti-faux rese
 int  loadLastDay();          // Restitue le dernier jour (0 = inconnu)
 
 // --- GESTION DES JOURNAUX (LittleFS / Fichiers .txt) ---
-void logHistory(String message); // Pour historique.txt (Cycles de pompe)
-void logToFile(String message);  // Pour systeme.log (Reboots, erreurs soft) deviens logtoFile pour éviter la confusion avec logSystem qui est plus spécifique
+void logHistory(String message); // Pour historique.txt (Cycles de pompe) — non utilisée actuellement, réservée
+void logToFile(String message);  // Pour systeme.log (Reboots, erreurs soft)
 void logAlert(String message);   // Pour alertes.log (Gel, manque d'eau)
 
 #endif

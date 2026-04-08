@@ -8,7 +8,8 @@ static bool          motorFaultLatched  = false; // Verrou : reste vrai jusqu'au
 static unsigned long motorFaultSince    = 0;     // Horodatage 1ère détection (anti-rebond)
 static bool          motorFaultConfirmed = false; // true = défaut confirmé après délai
 
-// Délai de confirmation avant verrouillage (élimine glitches I2C et bruit électrique)
+// Délai de confirmation avant verrouillage (élimine glitches I2C et bruit électrique).
+// 200 ms : largement supérieur aux rebonds I2C (~1 ms) mais assez court pour une détection rapide.
 static const unsigned long MOTOR_FAULT_DEBOUNCE_MS = 200;
 
 bool isSystemSafe() {

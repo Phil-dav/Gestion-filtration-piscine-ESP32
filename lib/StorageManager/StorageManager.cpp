@@ -7,7 +7,7 @@ Preferences prefs;
 // Ne pas déclarer dans le .h, elle ne sert qu'ici
 void _writeToFS(const char *path, String msg)
 {
-    // Appel de ta fonction GPS pour dater l'entrée
+    // Horodatage via getGPSPitch() : retourne une chaîne "JJ/MM/AAAA HH:MM:SS" (GPS ou NTP)
     String timestamp = getGPSPitch();
 
     File file = LittleFS.open(path, FILE_APPEND);
