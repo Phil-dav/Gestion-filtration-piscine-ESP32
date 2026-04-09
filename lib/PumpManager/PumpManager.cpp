@@ -5,6 +5,21 @@ static bool pumpRequest = false;
 static bool pumpState = false;
 // Etat du relais niveau bas (évite les écritures PCF répétées)
 static bool niveauRelaisAllume = false;
+
+// --- FEEDBACK HARDWARE GPIO33 ---
+static bool          _feedbackFaultMode   = false; // true = fil rompu, feedback ignoré
+static unsigned long _mismatchSince       = 0;     // début du mismatch continu (0 = pas de mismatch)
+static unsigned long _lastCmdChangeTime   = 0;     // horodatage du dernier changement de relais
+static int           _chatterCount        = 0;     // transitions dans la fenêtre anti-claquement
+static unsigned long _chatterWindowStart  = 0;     // début de la fenêtre de comptage
+static unsigned long _pumpBlockedUntil    = 0;     // blocage temporaire anti-claquement (ms)
+
+// Seuils feedback
+static const unsigned long RELAY_SETTLE_MS  = 500UL;    // délai physique de commutation relais
+static const unsigned long WIRE_BREAK_MS    = 30000UL;  // mismatch > 30s → fil rompu
+static const int           CHATTER_MAX      = 5;        // transitions max dans la fenêtre
+static const unsigned long CHATTER_WINDOW   = 10000UL;  // fenêtre anti-claquement (10s)
+static const unsigned long BLOCK_DURATION   = 300000UL; // blocage pompe après claquement (5 min)
 // --- Variables de suivi de session (log) ---
 static String        _sessionStartTime = "";
 static String        _sessionMode      = "";
@@ -17,6 +32,7 @@ void initPumpManager()
 {
     pumpRequest = false;
     pumpState = false;
+    pinMode(PIN_FEEDBACK_POMPE, INPUT_PULLDOWN); // GPIO33 : pull-down interne (LOW si fil absent)
     forceStopPump(); // Sécurité au démarrage
 }
 
@@ -62,7 +78,41 @@ void updatePumpSystem()
     lastTickPump = now; // Mise à jour du repère pour le prochain tour
 
     // -------------------------------------------------------------------------
-    // 2. VÉRIFICATION DE LA SÉCURITÉ (SENTINELLE)
+    // 2. LECTURE FEEDBACK GPIO33 (relais miroir)
+    // -------------------------------------------------------------------------
+    // On attend RELAY_SETTLE_MS après le dernier changement pour laisser le relais commuter.
+    // En mode dégradé (fil rompu confirmé), on saute la vérification.
+    if (!_feedbackFaultMode && (millis() - _lastCmdChangeTime > RELAY_SETTLE_MS)) {
+        bool fbState = digitalRead(PIN_FEEDBACK_POMPE); // HIGH = contact fermé = pompe ON confirmée
+
+        if (fbState != pumpState) {
+            // Mismatch : feedback ne correspond pas à la commande
+            if (_mismatchSince == 0) _mismatchSince = millis();
+
+            if (millis() - _mismatchSince > WIRE_BREAK_MS) {
+                // Mismatch persistant depuis > 30s → on considère le fil rompu
+                _feedbackFaultMode = true;
+                logSystem(CRITICAL, "FEEDBACK",
+                    "GPIO33 mismatch > 30s — fil rompu, mode dégradé activé (pompe non bloquée)");
+                logAlerte("FEEDBACK_ROMPU",
+                    String(pumpState ? "cmd=ON fb=LOW" : "cmd=OFF fb=HIGH").c_str());
+            }
+        } else {
+            _mismatchSince = 0; // Feedback cohérent — reset du compteur
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // 2b. BLOCAGE ANTI-CLAQUEMENT EN COURS ?
+    // -------------------------------------------------------------------------
+    if (millis() < _pumpBlockedUntil) {
+        // Pompe en période de blocage suite à claquement détecté
+        if (pumpState) forceStopPump();
+        return; // On ne traite rien d'autre pendant le blocage
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. VÉRIFICATION DE LA SÉCURITÉ (SENTINELLE)
     // -------------------------------------------------------------------------
     bool safe = isSystemSafe();
 
@@ -77,9 +127,27 @@ void updatePumpSystem()
             unsigned long tNow = millis();
             unsigned long delai = tNow - lastRelayChange;
 
+            // --- ANTI-CLAQUEMENT : comptage des transitions dans la fenêtre ---
+            if (tNow - _chatterWindowStart > CHATTER_WINDOW) {
+                _chatterWindowStart = tNow; // Nouvelle fenêtre
+                _chatterCount = 0;
+            }
+            _chatterCount++;
+            if (_chatterCount >= CHATTER_MAX) {
+                _pumpBlockedUntil = tNow + BLOCK_DURATION;
+                logSystem(CRITICAL, "PUMP",
+                    "Claquement détecté (" + String(_chatterCount) + " transitions en 10s) — blocage 5 min");
+                logAlerte("CLAQUEMENT", String(_chatterCount).c_str());
+                _chatterCount = 0;
+                forceStopPump();
+                return;
+            }
+
             bool wasRunning = pumpState;
             pumpState = pumpRequest;
             setRelay(PIN_RELAY_POMPE, pumpState);
+            setRelay(PIN_RELAY_FEEDBACK_POMPE, pumpState); // Relais miroir commandé en parallèle
+            _lastCmdChangeTime = tNow; // Démarre le délai de stabilisation feedback
 
             // Historique des modes (MANU uniquement — AUTO géré dans main.cpp, bloc "HISTORIQUE AUTO" en loop())
             if (getCurrentMode() == MODE_MANU) {
@@ -182,7 +250,9 @@ void forceStopPump()
 {
     // Action directe sur le matériel via le driver PCF
     setRelay(PIN_RELAY_POMPE, false);
+    setRelay(PIN_RELAY_FEEDBACK_POMPE, false); // Miroir éteint aussi
     pumpState = false;
+    _lastCmdChangeTime = millis(); // Démarre le délai de stabilisation feedback
 }
 
 bool isPumpRunning()
@@ -197,3 +267,6 @@ float getPumpingDoneToday()
 
 int getDailySessionCount()   { return _dailySessionCount; }
 void resetDailySessionCount() { _dailySessionCount = 0; }
+
+bool isFeedbackFault() { return _feedbackFaultMode; }
+bool isPumpBlocked()   { return millis() < _pumpBlockedUntil; }

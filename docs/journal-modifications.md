@@ -89,6 +89,67 @@ purgeOldLogs(2);     // purge CSV anciens
 
 ---
 
+---
+
+## 2026-04-09 — Feedback hardware pompe (relais miroir + GPIO33)
+
+### Problème identifié
+
+Risque de démarrages/arrêts intempestifs du relais pompe (claquements) sans possibilité
+de le détecter logiciellement. La commande est envoyée au PCF8574 mais rien ne confirme
+que le relais a physiquement commuté.
+
+### Raisonnement
+
+Utiliser le **relais 2** (PCF8574 P2, jusqu'ici `PIN_RELAY_ALERTE_GEL` non utilisé) comme
+relais miroir commandé en parallèle du relais pompe. Son contact NO renvoie l'info sur
+**GPIO33** de l'ESP32 : fermé = pompe ON confirmée, ouvert = pompe OFF.
+
+Deux situations distinctes à traiter différemment :
+
+- **Claquement** : transitions ON↔OFF rapides et répétées → alerte + blocage temporaire 5 min
+- **Fil rompu** : mismatch stable pendant > 30 s → mode dégradé (feedback ignoré, pompe non bloquée)
+
+La pompe ne doit **jamais être bloquée** par une panne mécanique du fil de retour.
+
+### Ce qui a été fait
+
+#### `include/config.h`
+
+- Renommé `PIN_RELAY_ALERTE_GEL 2` → `PIN_RELAY_FEEDBACK_POMPE 2`
+- Ajouté `PIN_FEEDBACK_POMPE 33` (GPIO33 ESP32, pull-down interne)
+
+#### `lib/PumpManager/PumpManager.h`
+
+- Ajouté `isFeedbackFault()` — true si fil GPIO33 rompu (mode dégradé actif)
+- Ajouté `isPumpBlocked()` — true si pompe bloquée suite à claquement
+
+#### `lib/PumpManager/PumpManager.cpp`
+
+- `initPumpManager()` : `pinMode(PIN_FEEDBACK_POMPE, INPUT_PULLDOWN)`
+- `updatePumpSystem()` : lecture GPIO33 après délai de stabilisation (500 ms), détection mismatch
+  - Mismatch > 30 s → `FEEDBACK_ROMPU` → mode dégradé (log CRITICAL + alerte CSV)
+  - ≥ 5 transitions en 10 s → `CLAQUEMENT` → blocage pompe 5 min (log CRITICAL + alerte CSV)
+- Lors de chaque changement de relais : `setRelay(PIN_RELAY_FEEDBACK_POMPE, pumpState)` en parallèle
+- `forceStopPump()` : éteint aussi le relais miroir
+
+### Résultat attendu
+
+**Sans câblage (GPIO33 non connecté)** :
+
+- GPIO33 reste LOW en permanence
+- Dès que la pompe tourne → mismatch détecté
+- Après 30 s → message CRITICAL "fil rompu, mode dégradé" → pompe continue normalement
+- Comportement idéal pour tester le code avant de faire le câblage
+
+**Avec câblage (GPIO33 câblé sur contact NO du relais miroir)** :
+
+- Feedback cohérent → aucun message d'erreur
+- Claquement réel détecté → blocage 5 min + alerte CSV
+- Rupture de fil en cours de fonctionnement → mode dégradé après 30 s
+
+---
+
 ## Modèle d'entrée pour les prochaines modifications
 
 ```

@@ -1,6 +1,6 @@
 #pragma once
 
-#define DEBUG_ENABLED // --- DEBUG : Mettre en commentaire pour désactiver tous les messages série ---
+//#define DEBUG_ENABLED // --- DEBUG : Mettre en commentaire pour désactiver tous les messages série ---
 
 #define I2C_SDA 21
 #define I2C_SCL 22
@@ -22,10 +22,16 @@
 
 // --- SORTIES (0 à 3) ---
 // Note : LOW = Activé (Relais collé / LED allumée)
-#define PIN_RELAY_POMPE 0      // Pilotage Pompe Filtration (via In1 du module relais)
-#define PIN_RELAY_TEMP_EAU 1   // Pilotage Relais Défaut Température (In2)
-#define PIN_RELAY_ALERTE_GEL 2 // Pilotage Relais Alerte Gel (In3)
-#define PIN_RELAY_DEFAUT_SYSTEME 3 // Relais signalisation défaut système (niveau, moteur, sécurité)
+#define PIN_RELAY_POMPE 0              // Pilotage Pompe Filtration (via In1 du module relais)
+#define PIN_RELAY_TEMP_EAU 1           // Libre — réservé usage futur alarme température
+#define PIN_RELAY_FEEDBACK_POMPE 2     // Relais miroir pompe — commandé en parallèle du relais 0
+#define PIN_RELAY_DEFAUT_SYSTEME 3     // Relais signalisation défaut système (niveau, moteur, sécurité)
+
+// --- FEEDBACK HARDWARE POMPE ---
+// Contact NO du relais miroir (PCF P2) → GPIO33 ESP32
+// Câblage : une borne NO → 3.3V, autre borne → GPIO33
+// pull-down interne activé dans initPumpManager()
+#define PIN_FEEDBACK_POMPE 33
 
 // --- ENTRÉES (4 à 7) ---
 // Note : Grâce aux résistances R2-R5, l'état est HIGH par défaut, LOW si activé
