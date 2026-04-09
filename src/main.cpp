@@ -246,6 +246,8 @@ void loop()
         resetDailyOledStats(); // Reset T° min/max affichées page bilan
         mhReset();             // Efface l'historique des modes (nouveau jour)
         mhInitDone = false;    // Réinitialise au prochain tick valide
+        trimSystemLog(200);    // Garde les 200 dernières lignes — évite saturation LittleFS
+        purgeOldLogs(2);       // Supprime les CSV /logs/ vieux de plus de 2 mois
         logSystem(INFO, "PUMP", "Nouveau jour (" + String(jourPourPompe) + ") - reset compteur filtration");
     }
 

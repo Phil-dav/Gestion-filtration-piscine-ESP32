@@ -113,3 +113,104 @@ float loadFiltrationProgress()
 void logHistory(String message) { _writeToFS("/historique.txt", message); }
 void logToFile(String message) { _writeToFS("/systeme.log", message); }
 void logAlert(String message) { _writeToFS("/alertes.log", message); }
+
+// --- MAINTENANCE DES JOURNAUX ---
+
+// Tronque /systeme.log aux maxLines dernières lignes.
+// Algorithme : lecture pour compter, seek pour sauter les premières, copie dans /sys_tmp.log,
+// suppression de l'original, renommage du temporaire. Aucune allocation dynamique.
+void trimSystemLog(int maxLines)
+{
+    const char* path    = "/systeme.log";
+    const char* tmpPath = "/sys_tmp.log";
+
+    File f = LittleFS.open(path, FILE_READ);
+    if (!f) return;
+
+    // 1. Compter le nombre total de lignes
+    int totalLines = 0;
+    while (f.available()) {
+        if (f.read() == '\n') totalLines++;
+    }
+
+    if (totalLines <= maxLines) {
+        f.close();
+        return; // Fichier suffisamment court, rien à faire
+    }
+
+    // 2. Avancer jusqu'à la première ligne à conserver
+    int toSkip = totalLines - maxLines;
+    f.seek(0);
+    int skipped = 0;
+    while (f.available() && skipped < toSkip) {
+        if (f.read() == '\n') skipped++;
+    }
+
+    // 3. Copier le reste dans un fichier temporaire (buffer 256 B)
+    File tmp = LittleFS.open(tmpPath, FILE_WRITE);
+    if (!tmp) { f.close(); return; }
+
+    uint8_t buf[256];
+    while (f.available()) {
+        size_t n = f.read(buf, sizeof(buf));
+        tmp.write(buf, n);
+    }
+    f.close();
+    tmp.close();
+
+    // 4. Remplacer l'original par le fichier tronqué
+    LittleFS.remove(path);
+    LittleFS.rename(tmpPath, path);
+
+    logSystem(INFO, "FS", "systeme.log tronqué (" + String(totalLines) + " → " + String(maxLines) + " lignes)");
+}
+
+// Supprime les fichiers /logs/*.csv plus vieux que keepMonths mois.
+// Format attendu des noms : prefix_MMYY.csv (ex: sessions_0426.csv)
+void purgeOldLogs(int keepMonths)
+{
+    struct tm t;
+    if (!getLocalTime(&t) || t.tm_year < 124) return; // Date NTP non disponible
+
+    int currentMM = t.tm_mon + 1;       // 1–12
+    int currentYY = t.tm_year - 100;    // ex: 2026 → 26
+
+    File root = LittleFS.open("/logs");
+    if (!root || !root.isDirectory()) { root.close(); return; }
+
+    // Collecter les noms à supprimer sans modifier le répertoire pendant l'itération
+    const int MAX_TO_DELETE = 20;
+    String toDelete[MAX_TO_DELETE];
+    int deleteCount = 0;
+
+    File entry = root.openNextFile();
+    while (entry && deleteCount < MAX_TO_DELETE) {
+        String name = String(entry.name()); // Juste le nom, sans chemin
+        entry.close();
+
+        // Chercher le tag MMYY : 4 caractères avant le dernier '.'
+        int dotIdx       = name.lastIndexOf('.');
+        int underscoreIdx = name.lastIndexOf('_');
+        if (underscoreIdx >= 0 && dotIdx == underscoreIdx + 5) {
+            // "MMYY" = 4 chars entre '_' et '.'
+            String tag = name.substring(underscoreIdx + 1, dotIdx);
+            int mm = tag.substring(0, 2).toInt();
+            int yy = tag.substring(2, 4).toInt();
+            if (mm >= 1 && mm <= 12 && yy >= 0) {
+                int ageMonths = (currentYY - yy) * 12 + (currentMM - mm);
+                if (ageMonths > keepMonths) {
+                    toDelete[deleteCount++] = "/logs/" + name;
+                }
+            }
+        }
+        entry = root.openNextFile();
+    }
+    root.close();
+
+    // Supprimer les fichiers repérés
+    for (int i = 0; i < deleteCount; i++) {
+        if (LittleFS.remove(toDelete[i])) {
+            logSystem(INFO, "FS", "Purge : " + toDelete[i]);
+        }
+    }
+}

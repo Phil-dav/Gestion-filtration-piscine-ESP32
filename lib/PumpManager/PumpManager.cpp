@@ -169,7 +169,11 @@ void updatePumpSystem()
         if (getLocalTime(&_tmloc) && _tmloc.tm_year >= 124) {
             saveLastDay(_tmloc.tm_mday);
         }
-        logToFile("Sauvegarde auto : " + String(pumpingDoneToday, 2) + "h (" + String((int)(pumpingDoneToday * 60)) + " min)");
+        // [RETIRÉ] logToFile("Sauvegarde auto : ...") — supprimé volontairement.
+        // Raison : cette ligne écrivait dans /systeme.log toutes les 5 min → 288 lignes/jour
+        // → saturation LittleFS en 2-3 mois. La vraie sauvegarde est dans la NVS (saveFiltrationProgress).
+        // Le logSystem() ci-dessous conserve l'affichage sur le port série en direct.
+        logSystem(INFO, "PUMP", "Sauvegarde auto : " + String(pumpingDoneToday, 2) + "h (" + String((int)(pumpingDoneToday * 60)) + " min)");
     }
 
 }
