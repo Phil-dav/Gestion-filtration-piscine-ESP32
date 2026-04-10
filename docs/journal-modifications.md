@@ -5,6 +5,90 @@ avec le raisonnement derrière chaque choix.
 
 ---
 
+## 2026-04-10 — Feedback pompe visible dans l'interface web
+
+### Problème identifié
+
+Quand la sécurité anti-claquement bloque la pompe (5 min) ou que le fil GPIO33
+est rompu (mode dégradé), aucun indicateur n'était visible dans l'interface web.
+L'utilisateur ne savait pas pourquoi la pompe ne démarrait pas.
+
+### Raisonnement
+
+`isPumpBlocked()` et `isFeedbackFault()` existaient déjà dans `PumpManager`
+mais leurs états n'étaient pas exposés dans le JSON `/sensors`.
+La carte "Défauts Système" de l'interface possède déjà un mécanisme générique
+`updateFaults()` qui affiche dynamiquement les alertes actives — il suffisait
+de lui fournir les deux nouveaux états.
+
+### Ce qui a été fait
+
+#### `lib/Utils/web_utils.cpp` — endpoint `/sensors`
+
+Ajout de deux champs dans le JSON retourné :
+
+```cpp
+json += "\"pumpBlocked\":"   + String(isPumpBlocked()   ? "true" : "false") + ",";
+json += "\"feedbackFault\":"  + String(isFeedbackFault() ? "true" : "false") + ",";
+```
+
+#### `data/script.js` — fonction `fetchAllData()`
+
+Ajout de deux messages dans le tableau `faults[]` transmis à `updateFaults()` :
+
+```javascript
+if (data.pumpBlocked)   faults.push('⛔ POMPE BLOQUÉE — claquement détecté — reprise automatique dans 5 min');
+if (data.feedbackFault) faults.push('⚠ Fil feedback GPIO33 non connecté — mode dégradé (pompe non bloquée)');
+```
+
+### Résultat attendu
+
+- Claquement détecté → bandeau rouge "POMPE BLOQUÉE" dans l'interface
+- Fil GPIO33 absent → avertissement "mode dégradé" visible dès le démarrage
+- Aucune modification HTML requise (`updateFaults()` génère les items dynamiquement)
+
+---
+
+## 2026-04-10 — Timeline filtration : journée complète + marqueurs de plage
+
+### Problème identifié
+
+La timeline de filtration sur l'interface web était clippée à la plage horaire configurée
+(ex: 8h–20h). Tout événement pompe hors de cette fenêtre (anti-gel à 3h du matin, mode
+MANU en soirée, boost hors plage) était invisible — aucune trace dans l'interface.
+
+### Raisonnement
+
+La plage de filtration est une **consigne**, pas la limite des événements réels.
+La pompe peut s'activer à n'importe quelle heure (anti-gel, MANU, boost).
+Montrer uniquement la fenêtre configurée donne une vue partielle et trompeuse de la journée.
+
+### Ce qui a été fait
+
+#### `data/script.js` — fonction `updateFiltration()`
+
+- Échelle de la timeline : fenêtre `[debut, fin]` → **journée complète 0h–24h**
+- `toPercent` : `(h - debut) / fenetre` → `h / 24`
+- Labels d'axe : début/milieu/fin de plage → **0h / 12h / 24h** (fixes)
+- Zone surlignée (`filtRange`) : toute la barre → **plage configurée uniquement**
+  (positionnée à `toPercent(debut)`, largeur `(fin-debut)/24*100%`)
+- Segments de mode : clipping `[debut, fin]` supprimé → **toute la journée visible**
+- Barre "fait" (fallback sans historique) : `left=0%` → `left=toPercent(debut)`
+
+#### `data/index.html` + `data/script.js` — marqueurs visuels de plage
+
+Ajout de deux traits bleus verticaux (`filtr-window-mark`) sur la timeline,
+positionnés à `debut` et `fin`. Chacun porte un label horaire en dessous
+(ex : `8h00` et `20h00`).
+
+### Résultat attendu
+
+- Les événements hors plage (anti-gel nocturne, MANU en soirée) sont **visibles**
+- La plage configurée reste identifiable grâce à la zone surlignée et aux deux traits bleus
+- L'axe 0h–24h donne une lecture immédiate de la position dans la journée
+
+---
+
 ## 2026-04-09 — Gestion de la saturation de /systeme.log
 
 ### Problème identifié

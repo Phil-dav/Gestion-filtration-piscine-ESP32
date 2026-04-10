@@ -19,7 +19,7 @@ static bool pcfOK = false;
 void setup()
 {
     Serial.begin(115200);
-    delay(100);
+    delay(100); // Stabilisation Serial — seul delay() autorisé dans ce projet (setup uniquement)
     // 1. On réveille le stockage d'abord
     initStorage();
     initLogManager(); // Crée le dossier /logs si absent

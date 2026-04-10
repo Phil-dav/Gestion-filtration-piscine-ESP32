@@ -371,6 +371,28 @@
       white-space: nowrap;
     }
 
+    .filtr-window-mark {
+      position: absolute;
+      top: -5px;
+      bottom: -5px;
+      width: 2px;
+      background: rgba(0, 140, 255, 0.7);
+      border-radius: 2px;
+      box-shadow: 0 0 6px rgba(0, 140, 255, 0.5);
+      transition: left 0.5s;
+    }
+
+    .filtr-window-label {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.52rem;
+      font-family: 'Orbitron', monospace;
+      color: rgba(0, 160, 255, 0.8);
+      white-space: nowrap;
+    }
+
     .filtr-labels {
       display: flex;
       justify-content: space-between;
@@ -968,6 +990,12 @@
           <div class="filtr-cursor" id="filtCursor"></div>
           <div class="filtr-endline" id="filtEnd">
             <span class="filtr-endlabel" id="filtEndLabel"></span>
+          </div>
+          <div class="filtr-window-mark" id="filtWindowStart">
+            <span class="filtr-window-label" id="filtWindowStartLabel"></span>
+          </div>
+          <div class="filtr-window-mark" id="filtWindowEnd">
+            <span class="filtr-window-label" id="filtWindowEndLabel"></span>
           </div>
         </div>
         <div class="filtr-labels">

@@ -100,6 +100,8 @@ void startWebServer()
             json += "\"boostForceOn\":"   + String(isBoostForceOn() ? "true" : "false") + ",";
             json += "\"boostRemaining\":" + String(boostRem) + ",";
             json += "\"boostDuration\":"  + String(getBoostDurationMinutes()) + ",";
+            json += "\"pumpBlocked\":"   + String(isPumpBlocked()   ? "true" : "false") + ",";
+            json += "\"feedbackFault\":"  + String(isFeedbackFault() ? "true" : "false") + ",";
             json += "\"modeHistory\":"    + mhToJSON();
             json += "}";
         }

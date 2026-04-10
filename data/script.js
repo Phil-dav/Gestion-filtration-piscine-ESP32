@@ -126,8 +126,10 @@ function fetchAllData() {
       }
 
       // Alertes thermiques
-      if (data.antiGel)   faults.push('⚠ ANTI-GEL actif — pompe forcée en continu (T° eau < 4°C)');
-      if (data.canicule)  faults.push('⚠ CANICULE active — filtration continue (T° eau > 28°C)');
+      if (data.antiGel)       faults.push('⚠ ANTI-GEL actif — pompe forcée en continu (T° eau < 4°C)');
+      if (data.canicule)      faults.push('⚠ CANICULE active — filtration continue (T° eau > 28°C)');
+      if (data.pumpBlocked)   faults.push('⛔ POMPE BLOQUÉE — claquement détecté — reprise automatique dans 5 min');
+      if (data.feedbackFault) faults.push('⚠ Fil feedback GPIO33 non connecté — mode dégradé (pompe non bloquée)');
 
       // Mode de fonctionnement
       const modeEl   = document.getElementById('currentModeDisplay');
@@ -398,7 +400,6 @@ function updateFiltration(data) {
   const objectif = data.filtObjectif != null ? data.filtObjectif : 0;
   const debut    = data.filtDebut    != null ? data.filtDebut    : 0;
   const fin      = data.filtFin      != null ? data.filtFin      : 24;
-  const fenetre  = fin - debut || 1; // évite division par zéro
 
   const heureNow = new Date().getHours() + new Date().getMinutes() / 60;
   const reste    = Math.max(0, objectif - fait);
@@ -422,21 +423,30 @@ function updateFiltration(data) {
     if (resteEl) { resteEl.textContent = formatHM(reste); resteEl.style.color = '#f59e0b'; }
   }
 
-  // ── Labels dynamiques de l'axe (début, milieu, fin de plage) ─
-  const mid = debut + fenetre / 2;
-  setTextContent('filtLabelStart', fmtHour(debut));
-  setTextContent('filtLabelMid',   fmtHour(mid));
-  setTextContent('filtLabelEnd',   fmtHour(fin));
+  // ── Labels fixes : journée complète 0h – 12h – 24h ────────
+  setTextContent('filtLabelStart', '0h');
+  setTextContent('filtLabelMid',   '12h');
+  setTextContent('filtLabelEnd',   '24h');
 
-  // ── Conversion heure décimale → % dans la fenêtre ──────────
-  const toPercent = h => Math.min(100, Math.max(0, ((h - debut) / fenetre) * 100));
+  // ── Conversion heure décimale → % sur la journée complète (0–24h) ──
+  const toPercent = h => Math.min(100, Math.max(0, (h / 24) * 100));
 
-  // Zone autorisée = toute la fenêtre
+  // ── Zone surlignée = plage de filtration configurée ────────
   const rangeEl = document.getElementById('filtRange');
   if (rangeEl) {
-    rangeEl.style.left  = '0%';
-    rangeEl.style.width = '100%';
+    rangeEl.style.left  = toPercent(debut) + '%';
+    rangeEl.style.width = ((fin - debut) / 24 * 100) + '%';
   }
+
+  // ── Marqueurs visuels début / fin de plage (traits bleus) ──
+  const markStart    = document.getElementById('filtWindowStart');
+  const markStartLbl = document.getElementById('filtWindowStartLabel');
+  const markEnd      = document.getElementById('filtWindowEnd');
+  const markEndLbl   = document.getElementById('filtWindowEndLabel');
+  if (markStart) markStart.style.left = toPercent(debut) + '%';
+  if (markStartLbl) markStartLbl.textContent = fmtHour(debut);
+  if (markEnd)   markEnd.style.left   = toPercent(fin)   + '%';
+  if (markEndLbl)   markEndLbl.textContent   = fmtHour(fin);
 
   // ── Segments de mode (historique coloré) ───────────────────
   const timeline = document.getElementById('filtTimeline');
@@ -447,19 +457,19 @@ function updateFiltration(data) {
 
   if (segs.length > 0 && timeline) {
     segs.forEach(seg => {
-      const segStart = Math.max(debut, seg.s);
+      const segStart = seg.s;
       const segEnd   = seg.e < 0 ? heureNow : seg.e;  // -1 = en cours
-      const clipped  = Math.min(fin, segEnd);
-      if (segStart >= fin || clipped <= debut) return;  // hors fenêtre
+      const clipped  = segEnd;
+      if (segStart >= 24 || clipped <= 0) return;  // hors journée seulement
 
       const left  = toPercent(segStart);
       const right = toPercent(clipped);
       if (right <= left + 0.1) return;
 
       const el = document.createElement('div');
-      el.className       = 'mode-seg';
-      el.style.left      = left + '%';
-      el.style.width     = (right - left) + '%';
+      el.className        = 'mode-seg';
+      el.style.left       = left + '%';
+      el.style.width      = (right - left) + '%';
       el.style.background = MODE_SEG_COLORS[seg.t] || '#6b7280';
       timeline.appendChild(el);
     });
@@ -468,11 +478,11 @@ function updateFiltration(data) {
     const doneEl = document.getElementById('filtDone');
     if (doneEl) doneEl.style.width = '0%';
   } else {
-    // Sans historique : afficher la barre "fait" classique (bleu)
+    // Sans historique : barre "fait" positionnée au début de la plage
     const doneEl = document.getElementById('filtDone');
     if (doneEl) {
-      const doneWidth = (Math.min(fait, objectif) / fenetre) * 100;
-      doneEl.style.left       = '0%';
+      const doneWidth = (Math.min(fait, objectif) / 24) * 100;
+      doneEl.style.left       = toPercent(debut) + '%';
       doneEl.style.width      = doneWidth + '%';
       doneEl.style.background = fait >= objectif
         ? 'linear-gradient(90deg,#00aa44,#00ff88)'
@@ -480,13 +490,13 @@ function updateFiltration(data) {
     }
   }
 
-  // Curseur heure actuelle (blanc)
+  // ── Curseur heure actuelle (trait blanc) ───────────────────
   const cursorEl = document.getElementById('filtCursor');
   if (cursorEl) {
     cursorEl.style.left = toPercent(heureNow) + '%';
   }
 
-  // Fin théorique de filtration (vert) = heure_début + objectif
+  // ── Fin théorique de filtration (trait vert) ───────────────
   const finTheorique = debut + objectif;
   const endEl        = document.getElementById('filtEnd');
   const endLbl       = document.getElementById('filtEndLabel');
