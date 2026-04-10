@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.webp" alt="Phil Domo - ESP32 Piscine Logo" width="100%">
+  <img src="img/Logo phil domo.webp" alt="Phil Domo - ESP32 Piscine Logo" width="100%">
 </p>
 
 ---
