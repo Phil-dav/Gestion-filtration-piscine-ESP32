@@ -156,19 +156,24 @@ function fetchAllData() {
       // Visibilité boutons pompe selon le mode
       const pumpButtons  = document.getElementById('pumpButtons');
       const boostButtons = document.getElementById('boostButtons');
+      const boostDurSection = document.getElementById('boostDurSection');
       if (data.antiGel || data.canicule) {
         // Protection active : aucun contrôle manuel possible
-        if (pumpButtons)  pumpButtons.style.display  = 'none';
-        if (boostButtons) boostButtons.style.display = 'none';
+        if (pumpButtons)     pumpButtons.style.display     = 'none';
+        if (boostButtons)    boostButtons.style.display    = 'none';
+        if (boostDurSection) boostDurSection.style.display = 'none';
       } else if (data.mode === 'MANU') {
-        if (pumpButtons)  pumpButtons.style.display  = 'flex';
-        if (boostButtons) boostButtons.style.display = 'none';
+        if (pumpButtons)     pumpButtons.style.display     = 'flex';
+        if (boostButtons)    boostButtons.style.display    = 'none';
+        if (boostDurSection) boostDurSection.style.display = 'none';
       } else if (data.mode === 'AUTO') {
-        if (pumpButtons)  pumpButtons.style.display  = 'none';
-        if (boostButtons) boostButtons.style.display = 'flex';
+        if (pumpButtons)     pumpButtons.style.display     = 'none';
+        if (boostButtons)    boostButtons.style.display    = 'flex';
+        if (boostDurSection) boostDurSection.style.display = '';
       } else {
-        if (pumpButtons)  pumpButtons.style.display  = 'none';
-        if (boostButtons) boostButtons.style.display = 'none';
+        if (pumpButtons)     pumpButtons.style.display     = 'none';
+        if (boostButtons)    boostButtons.style.display    = 'none';
+        if (boostDurSection) boostDurSection.style.display = 'none';
       }
 
       // Boutons boost dynamiques selon état pompe + boost actif/inactif
@@ -448,7 +453,18 @@ function updateFiltration(data) {
   if (markEnd)   markEnd.style.left   = toPercent(fin)   + '%';
   if (markEndLbl)   markEndLbl.textContent   = fmtHour(fin);
 
-  // ── Segments de mode (historique coloré) ───────────────────
+  // ── Barre "fait" — toujours affichée (source NVS, toujours exacte) ──
+  const doneEl = document.getElementById('filtDone');
+  if (doneEl) {
+    const doneWidth = (Math.min(fait, objectif) / 24) * 100;
+    doneEl.style.left       = toPercent(debut) + '%';
+    doneEl.style.width      = doneWidth + '%';
+    doneEl.style.background = fait >= objectif
+      ? 'linear-gradient(90deg,#00aa44,#00ff88)'
+      : 'linear-gradient(90deg,#0055ff,#00aaff)';
+  }
+
+  // ── Segments de mode (historique coloré, par-dessus la barre) ──
   const timeline = document.getElementById('filtTimeline');
   const segs     = Array.isArray(data.modeHistory) ? data.modeHistory : [];
 
@@ -459,12 +475,11 @@ function updateFiltration(data) {
     segs.forEach(seg => {
       const segStart = seg.s;
       const segEnd   = seg.e < 0 ? heureNow : seg.e;  // -1 = en cours
-      const clipped  = segEnd;
-      if (segStart >= 24 || clipped <= 0) return;  // hors journée seulement
+      if (segStart >= 24 || segEnd <= 0) return;  // hors journée seulement
 
       const left  = toPercent(segStart);
-      const right = toPercent(clipped);
-      if (right <= left + 0.1) return;
+      const right = toPercent(segEnd);
+      if (right <= left + 0.1) return;  // segment trop étroit → ignoré
 
       const el = document.createElement('div');
       el.className        = 'mode-seg';
@@ -473,21 +488,6 @@ function updateFiltration(data) {
       el.style.background = MODE_SEG_COLORS[seg.t] || '#6b7280';
       timeline.appendChild(el);
     });
-
-    // Avec segments : masquer la barre "fait" (redondante)
-    const doneEl = document.getElementById('filtDone');
-    if (doneEl) doneEl.style.width = '0%';
-  } else {
-    // Sans historique : barre "fait" positionnée au début de la plage
-    const doneEl = document.getElementById('filtDone');
-    if (doneEl) {
-      const doneWidth = (Math.min(fait, objectif) / 24) * 100;
-      doneEl.style.left       = toPercent(debut) + '%';
-      doneEl.style.width      = doneWidth + '%';
-      doneEl.style.background = fait >= objectif
-        ? 'linear-gradient(90deg,#00aa44,#00ff88)'
-        : 'linear-gradient(90deg,#0055ff,#00aaff)';
-    }
   }
 
   // ── Curseur heure actuelle (trait blanc) ───────────────────

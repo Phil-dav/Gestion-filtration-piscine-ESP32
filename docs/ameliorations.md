@@ -116,6 +116,83 @@ et le reset journalier ne se déclenche jamais → `pumpingDoneToday` grossit in
 
 ---
 
+## Priorité haute — Sécurité & Stabilité (suggestions proactives)
+
+### D1 — Surveillance de la mémoire heap
+
+- **Fichiers concernés :** `src/main.cpp` ou `lib/LogManager/`
+- **Statut :** `[ ]`
+- **Difficulté :** Très faible — une ligne de code
+
+**Problème :** L'ESP32 a 320 KB de RAM. Avec AsyncWebServer + JSON + LittleFS + GPS + OLED
+actifs en parallèle, une fuite mémoire peut provoquer des reboots silencieux après plusieurs
+jours de fonctionnement continu. Difficile à diagnostiquer sans trace.
+
+**Action :**
+
+- [ ] Ajouter dans le bloc cadencé 30 s :
+
+```cpp
+logSystem(INFO, "MEM", "Heap libre : " + String(ESP.getFreeHeap()) + " octets");
+```
+
+- [ ] Surveiller sur quelques jours : si le heap descend régulièrement, il y a une fuite
+
+---
+
+### D2 — Protection de l'interface web (authentification)
+
+- **Fichiers concernés :** `lib/Utils/web_utils.cpp`
+- **Statut :** `[ ]`
+- **Difficulté :** Faible
+
+**Problème :** N'importe qui sur le réseau WiFi local peut allumer/arrêter la pompe,
+effacer les journaux, modifier la plage horaire. Aucune authentification en place.
+
+**Action :**
+
+- [ ] Ajouter HTTP Basic Auth sur toutes les routes sensibles (`/pump`, `/boost`,
+  `/set-schedule`, `/clear-logs`, `/reset_motor_fault`) via le mécanisme natif
+  d'ESPAsyncWebServer (`request->authenticate()`)
+- [ ] Stocker login/mot de passe dans `secrets.h`
+
+---
+
+### D3 — Mise à jour OTA (Over-The-Air)
+
+- **Fichiers concernés :** `platformio.ini`, `src/main.cpp`
+- **Statut :** `[ ]`
+- **Difficulté :** Faible
+
+**Problème :** Chaque mise à jour firmware nécessite un câble USB et d'être physiquement
+à côté de l'ESP32 — contraignant quand l'automate est installé au bord de la piscine.
+
+**Action :**
+
+- [ ] Ajouter `ArduinoOTA` dans `setup()` (bibliothèque incluse dans le framework Arduino ESP32)
+- [ ] Configurer `platformio.ini` avec `upload_protocol = espota` et l'IP fixe de l'ESP32
+- [ ] Protéger l'OTA par un mot de passe dans `secrets.h`
+
+---
+
+### D4 — Graphique de température eau sur 7 jours
+
+- **Fichiers concernés :** `data/index.html`, `data/script.js`, `lib/LogManager/`
+- **Statut :** `[?]`
+- **Difficulté :** Moyenne
+
+**Problème :** Les CSV `daily_MMYY.csv` contiennent déjà les températures journalières
+mais aucune visualisation n'existe. Voir la courbe de montée en température au printemps
+permettrait d'anticiper le passage en mode canicule.
+
+**Action :**
+
+- [ ] Vérifier que `daily_MMYY.csv` contient bien la température min/max par jour
+- [ ] Ajouter un endpoint `/log/daily` qui retourne le CSV du mois
+- [ ] Afficher une courbe simple (canvas HTML5 ou SVG) dans l'interface web
+
+---
+
 ## Priorité normale — Documentation
 
 ### C1 — Ajouter une entrée journal pour CLAUDE.md et PROJECT_DOC.md
