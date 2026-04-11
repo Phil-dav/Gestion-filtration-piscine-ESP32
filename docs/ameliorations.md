@@ -120,23 +120,15 @@ et le reset journalier ne se déclenche jamais → `pumpingDoneToday` grossit in
 
 ### D1 — Surveillance de la mémoire heap
 
-- **Fichiers concernés :** `src/main.cpp` ou `lib/LogManager/`
-- **Statut :** `[ ]`
-- **Difficulté :** Très faible — une ligne de code
+- **Fichiers concernés :** `src/main.cpp`, `include/config.h`
+- **Statut :** `[x]` — 2026-04-11
 
-**Problème :** L'ESP32 a 320 KB de RAM. Avec AsyncWebServer + JSON + LittleFS + GPS + OLED
-actifs en parallèle, une fuite mémoire peut provoquer des reboots silencieux après plusieurs
-jours de fonctionnement continu. Difficile à diagnostiquer sans trace.
+**Ce qui a été fait :**
 
-**Action :**
-
-- [ ] Ajouter dans le bloc cadencé 30 s :
-
-```cpp
-logSystem(INFO, "MEM", "Heap libre : " + String(ESP.getFreeHeap()) + " octets");
-```
-
-- [ ] Surveiller sur quelques jours : si le heap descend régulièrement, il y a une fuite
+- `config.h` : constante `HEAP_MIN_SAFE 20000` (seuil reboot préventif)
+- `main.cpp` bloc 30 s : log INFO heap courante + minimum depuis boot (`getMinFreeHeap`)
+- Si `freeHeap < HEAP_MIN_SAFE` : sauvegarde NVS → `logAlerte("MEMOIRE_CRITIQUE", ...)` → `ESP.restart()`
+- L'alerte est visible dans l'onglet **Alertes** de l'interface web après le reboot
 
 ---
 
@@ -230,6 +222,7 @@ permettrait d'anticiper le passage en mode canicule.
 
 | Date       | Réf | Description                                                              |
 |------------|-----|--------------------------------------------------------------------------|
+| 2026-04-11 | D1  | Surveillance heap 30 s + reboot préventif + logAlerte MEMOIRE_CRITIQUE   |
 | 2026-04-10 | A2  | Commentaire sur le `delay(100)` de `setup()` dans `main.cpp`             |
 | 2026-04-10 | A1  | Investigation : `hourCorrectionIndex` déjà supprimé — sans action        |
 | 2026-04-10 | —   | Timeline 0h–24h + marqueurs bleus début/fin de plage (script.js, html)   |

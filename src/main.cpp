@@ -431,6 +431,17 @@ void loop()
     if (now - lastWifiCheck > 30000)
     {
         lastWifiCheck = now;
+
+        uint32_t freeHeap = ESP.getFreeHeap();
+        logSystem(INFO, "MEM", "Heap : libre=" + String(freeHeap) + " B  min=" + String(ESP.getMinFreeHeap()) + " B");
+
+        if (freeHeap < HEAP_MIN_SAFE) {
+            saveFiltrationProgress(pumpingDoneToday);
+            logAlerte("MEMOIRE_CRITIQUE",
+                ("Heap libre : " + String(freeHeap) + " B — reboot déclenché (seuil " + String(HEAP_MIN_SAFE) + " B)").c_str());
+            ESP.restart();
+        }
+
         wl_status_t wifiSt = WiFi.status();
         if (wifiSt != WL_CONNECTED) {
             logSystem(WARNING, "WIFI", "WiFi perdu (code=" + String(wifiSt) + ") - reconnexion...");

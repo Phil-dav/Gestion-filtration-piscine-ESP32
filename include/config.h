@@ -39,3 +39,6 @@
 #define PIN_MODE_MANU 5     // Position MANU de l'interrupteur 5
 #define PIN_MODE_AUTO 6     // Position AUTO de l'interrupteur 6
 #define PIN_DEFAUT_RELAIS 7 // Entrée J3 (Défaut moteur / commande relais)
+
+// --- SURVEILLANCE MÉMOIRE ---
+#define HEAP_MIN_SAFE 20000  // Seuil reboot préventif heap (octets libres)

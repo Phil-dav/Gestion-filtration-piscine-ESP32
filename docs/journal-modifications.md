@@ -5,6 +5,120 @@ avec le raisonnement derrière chaque choix.
 
 ---
 
+## 2026-04-11 — Surveillance mémoire heap avec protection par reboot préventif
+
+### Problème identifié
+
+L'ESP32 exécute en parallèle AsyncWebServer, ArduinoJson, LittleFS, GPS, OLED et DS18B20.
+Ce contexte multi-couches rend possible une fuite mémoire progressive — allocations non
+libérées qui consomment la heap octet par octet sur plusieurs heures ou jours.
+
+Sans surveillance, une telle fuite provoque un crash OOM (Out Of Memory) ou un reboot
+watchdog silencieux, sans aucune trace permettant de diagnostiquer ce qui s'est passé.
+L'utilisateur constate un reboot inopiné sans en connaître la cause.
+
+### Raisonnement
+
+Deux besoins distincts à traiter séparément :
+
+**1. Observabilité** — savoir si la heap évolue normalement ou se dégrade.
+`ESP.getFreeHeap()` retourne la valeur courante (fluctue avec les allocations).
+`ESP.getMinFreeHeap()` retourne le minimum enregistré depuis le dernier boot (indicateur
+de tendance : si cette valeur diminue d'un log à l'autre, une fuite est probable).
+Ces deux valeurs sont loguées toutes les 30 s dans le moniteur série — aucun coût CPU.
+
+**2. Protection active** — si la heap descend sous un seuil critique, agir avant le crash.
+En dessous de 20 000 octets libres, AsyncWebServer lui-même peut crasher. À ce stade,
+un reboot contrôlé vaut mieux qu'un crash OOM non tracé.
+Séquence choisie : sauvegarde NVS du compteur filtration → écriture dans le journal
+alertes CSV → `ESP.restart()`.
+
+Le journal alertes (LittleFS, persistant) est préféré à `logSystem()` (moniteur série)
+parce qu'un reboot nocturne serait invisible en série — l'entrée CSV reste lisible
+dans l'onglet **Alertes** de l'interface web dès le lendemain matin.
+
+### Ce qui a été fait
+
+#### `include/config.h`
+
+Ajout de la constante de seuil :
+
+```cpp
+// Avant : rien
+
+// Après :
+#define HEAP_MIN_SAFE 20000  // Seuil reboot préventif heap (octets libres)
+```
+
+#### `src/main.cpp` — PRIORITÉ 5 bloc 30 s
+
+**Avant :**
+```cpp
+if (now - lastWifiCheck > 30000)
+{
+    lastWifiCheck = now;
+    wl_status_t wifiSt = WiFi.status();
+    if (wifiSt != WL_CONNECTED) {
+        logSystem(WARNING, "WIFI", "WiFi perdu (code=" + String(wifiSt) + ") - reconnexion...");
+        WiFi.begin();
+    }
+}
+```
+
+**Après :**
+```cpp
+if (now - lastWifiCheck > 30000)
+{
+    lastWifiCheck = now;
+
+    uint32_t freeHeap = ESP.getFreeHeap();
+    logSystem(INFO, "MEM", "Heap : libre=" + String(freeHeap) + " B  min=" + String(ESP.getMinFreeHeap()) + " B");
+
+    if (freeHeap < HEAP_MIN_SAFE) {
+        saveFiltrationProgress(pumpingDoneToday);
+        logAlerte("MEMOIRE_CRITIQUE",
+            ("Heap libre : " + String(freeHeap) + " B — reboot déclenché (seuil " + String(HEAP_MIN_SAFE) + " B)").c_str());
+        ESP.restart();
+    }
+
+    wl_status_t wifiSt = WiFi.status();
+    if (wifiSt != WL_CONNECTED) {
+        logSystem(WARNING, "WIFI", "WiFi perdu (code=" + String(wifiSt) + ") - reconnexion...");
+        WiFi.begin();
+    }
+}
+```
+
+### Résultat attendu
+
+**En fonctionnement normal :**
+Le moniteur série affiche toutes les 30 s :
+
+```text
+[INFO]     MEM : Heap : libre=187432 B  min=164208 B
+```
+
+Si `min` reste stable sur plusieurs jours → pas de fuite.
+Si `min` descend progressivement → fuite identifiée, source à investiguer.
+
+**En cas de fuite atteignant le seuil :**
+
+- Le compteur de filtration est sauvegardé en NVS avant le reboot
+- Le journal Alertes contient l'entrée horodatée :
+
+  ```text
+  11/04/2026 │ 03:28:15 │ MEMOIRE_CRITIQUE │ Heap libre : 18432 B — reboot déclenché (seuil 20000 B)
+  ```
+
+- Au boot suivant, la cause de redémarrage `RESET_LOGICIEL` apparaît dans le log BOOT
+- Les deux traces combinées permettent de dater et quantifier la fuite
+
+**Ce que ce mécanisme ne couvre pas :**
+Une fuite brutale crashant l'ESP32 avant le prochain tick de 30 s ne sera pas tracée.
+En pratique les fuites mémoire sont lentes et progressives — ce cas est considéré négligeable.
+
+---
+
 ## 2026-04-10 — Feedback pompe visible dans l'interface web
 
 ### Problème identifié
