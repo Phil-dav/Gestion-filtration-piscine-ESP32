@@ -25,6 +25,27 @@ static const uint32_t LONG_PRESS_MS = 800; // maintien ≥ 800ms → retour page
 static const uint32_t DEBOUNCE_MS   = 50;  // ignore les rebonds < 50ms
 
 // =========================================================================
+// Veille écran
+// =========================================================================
+static const uint32_t SLEEP_TIMEOUT_MS = 300000; // 5 min sans activité → écran off
+static uint32_t       lastActivity     = 0;       // Initialisé dans initOLED()
+static bool           oledAsleep       = false;
+
+static void oledSleep() {
+    if (!oledAsleep) {
+        display.ssd1306_command(SSD1306_DISPLAYOFF);
+        oledAsleep = true;
+    }
+}
+
+static void oledWake() {
+    if (oledAsleep) {
+        display.ssd1306_command(SSD1306_DISPLAYON);
+        oledAsleep = false;
+    }
+}
+
+// =========================================================================
 // Bilan journalier T° min/max eau
 // =========================================================================
 static float dailyTempMin =  99.0f;
@@ -93,11 +114,23 @@ void handleOledButton() {
         btnHandled    = false;
     }
 
+    // Écran en veille : le relâchement du bouton réveille sans changer de page
+    if (oledAsleep) {
+        if (btnNow == HIGH && lastBtnState == LOW) {
+            oledWake();
+            lastActivity = now;
+            btnHandled   = true; // Appui consommé par le réveil
+        }
+        lastBtnState = btnNow;
+        return;
+    }
+
     // Bouton maintenu : détection appui long → retour page 0
     if (btnNow == LOW && !btnHandled) {
         if (now - btnPressStart >= LONG_PRESS_MS) {
             currentPage    = 0;
             lastPageChange = now;
+            lastActivity   = now;
             btnHandled     = true;
         }
     }
@@ -108,6 +141,7 @@ void handleOledButton() {
         if (dur >= DEBOUNCE_MS && dur < LONG_PRESS_MS) {
             currentPage    = (currentPage + 1) % PAGE_COUNT;
             lastPageChange = now;
+            lastActivity   = now;
         }
     }
 
@@ -235,6 +269,7 @@ static void renderAlert() {
 // =========================================================================
 
 void initOLED() {
+    lastActivity = millis(); // Démarre le compteur de veille dès l'init
     if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS)) {
         logSystem(WARNING, "OLED", "OLED non detecte");
         return;
@@ -287,11 +322,22 @@ void resetDailyOledStats() {
 
 void updateOledDisplay(String source, String time,
                        float tAir, float hAir, float tEau) {
-    // Alerte critique : priorité absolue, s'impose quelle que soit la page active
+    uint32_t now = millis();
+
+    // Alerte critique : réveille l'écran et s'impose (on ne dort pas sur une alerte)
     if (!isWaterLevelOk() || isMotorFaultActive() || !isSystemSafe()) {
+        oledWake();
+        lastActivity = now; // Maintient l'écran allumé tant que l'alerte est active
         renderAlert();
         return;
     }
+
+    // Mise en veille après inactivité (hors alerte)
+    if (!oledAsleep && (now - lastActivity >= SLEEP_TIMEOUT_MS)) {
+        oledSleep();
+        return;
+    }
+    if (oledAsleep) return; // En veille : rien à afficher
 
     switch (currentPage) {
         case 0: renderPage0(source, time, tAir, hAir, tEau); break;
