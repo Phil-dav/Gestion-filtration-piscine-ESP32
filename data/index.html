@@ -87,6 +87,19 @@
       letter-spacing: 1px;
     }
 
+    .time-source {
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      display: inline-block;
+      margin-top: 2px;
+    }
+    .time-source-gps  { background: #064e3b; color: #10b981; }
+    .time-source-ntp  { background: #0c2a4a; color: #38bdf8; }
+    .time-source-none { background: #4a1010; color: #ef4444; }
+
     .blink {
       animation: blink 1s step-end infinite;
     }
@@ -520,8 +533,8 @@
     }
 
     .pump-dot {
-      width: 8px;
-      height: 8px;
+      width: 14px;
+      height: 14px;
       border-radius: 50%;
       background: #4a6888;
       box-shadow: 0 0 6px #4a6888;
@@ -531,13 +544,19 @@
 
     .pump-dot.running {
       background: #00ff88;
-      box-shadow: 0 0 8px #00ff88;
-      animation: pulse-dot 1.5s ease-in-out infinite;
+      box-shadow: 0 0 8px #00ff88, 0 0 20px #00ff88, 0 0 40px rgba(0,255,136,0.4);
+      animation: pulse-dot 1.2s ease-in-out infinite;
     }
 
     @keyframes pulse-dot {
-      0%, 100% { opacity: 1; }
-      50%       { opacity: 0.45; }
+      0%, 100% {
+        box-shadow: 0 0 8px #00ff88, 0 0 20px #00ff88, 0 0 40px rgba(0,255,136,0.4);
+        transform: scale(1);
+      }
+      50% {
+        box-shadow: 0 0 14px #00ff88, 0 0 35px #00ff88, 0 0 60px rgba(0,255,136,0.6);
+        transform: scale(1.25);
+      }
     }
 
     #pumpStatus {
@@ -575,9 +594,11 @@
     }
 
     .btn-on {
-      background: rgba(16, 185, 129, 0.12);
-      color: #10b981;
+      background: linear-gradient(135deg, #10b981, #84cc16);
+      color: #ffffff;
       border-color: #10b981;
+      font-weight: 700;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.4);
     }
 
     .btn-off {
@@ -955,6 +976,7 @@
       <div class="header-clock">
         <div class="date"></div>
         <div class="time"></div>
+        <div class="time-source time-source-none" id="timeSource">⚠ FALLBACK</div>
       </div>
     </div>
 

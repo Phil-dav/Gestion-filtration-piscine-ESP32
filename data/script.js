@@ -219,6 +219,7 @@ function fetchAllData() {
       updateFaults(faults);
       updateGPS(data);
       updateWifi(data);
+      updateTimeSource(data);
     })
     .catch(err => {
       consecutiveErrors++;
@@ -382,7 +383,7 @@ function updateGPS(data) {
     badge.classList.add('gps-none');
     badge.style.color = '#ef4444';
     val.style.color   = '#ef4444';
-    val.textContent   = 'Recherche…';
+    val.textContent   = 'Signal perdu';
   }
 }
 
@@ -420,6 +421,22 @@ function updateWifi(data) {
     badge.style.color = '#10b981';
     val.style.color   = '#10b981';
     val.textContent   = rssi + ' dBm';
+  }
+}
+
+function updateTimeSource(data) {
+  const el = document.getElementById('timeSource');
+  if (!el) return;
+  el.className = 'time-source';
+  if (data.gpsOk) {
+    el.classList.add('time-source-gps');
+    el.textContent = '🛰 GPS';
+  } else if (data.wifiRssi && data.wifiRssi !== 0) {
+    el.classList.add('time-source-ntp');
+    el.textContent = '⇅ NTP';
+  } else {
+    el.classList.add('time-source-none');
+    el.textContent = '⚠ FALLBACK';
   }
 }
 

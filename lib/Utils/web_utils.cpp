@@ -92,7 +92,7 @@ void startWebServer()
             json += "\"motorFault\":"        + String(isMotorFaultActive()  ? "true" : "false") + ",";
             json += "\"motorFaultLatched\":" + String(isMotorFaultLatched() ? "true" : "false") + ",";
             bool gpsOk = gps.time.isValid() && gps.satellites.value() >= 4 && gps.time.age() < 5000;
-            json += "\"gpsSats\":"           + String(gps.satellites.isValid() ? (int)gps.satellites.value() : 0) + ",";
+            json += "\"gpsSats\":"           + String((gps.satellites.isValid() && gps.satellites.age() < 5000) ? (int)gps.satellites.value() : 0) + ",";
             json += "\"gpsOk\":"             + String(gpsOk ? "true" : "false") + ",";
             bool boostOn = isBoostActive();
             unsigned long boostRem = boostOn ? ((boostEndMs - millis()) / 1000UL) : 0UL;
