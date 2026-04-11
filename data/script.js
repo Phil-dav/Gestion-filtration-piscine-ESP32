@@ -22,7 +22,7 @@ function updateDateTime() {
   const s = String(now.getSeconds()).padStart(2, '0');
   const timeEl = document.querySelector('.time');
   if (timeEl) {
-    timeEl.innerHTML = `${h}<span class="blink">:</span>${m}<span class="blink">:</span>${s}`;
+    timeEl.innerHTML = `${h}:${m}<span class="blink">:</span>${s}`;
   }
 }
 
@@ -218,6 +218,7 @@ function fetchAllData() {
       updateFiltration(data);
       updateFaults(faults);
       updateGPS(data);
+      updateWifi(data);
     })
     .catch(err => {
       consecutiveErrors++;
@@ -385,6 +386,42 @@ function updateGPS(data) {
   }
 }
 
+
+// ============================================================
+// 4b. VIGNETTE WiFi
+// ============================================================
+
+function updateWifi(data) {
+  const badge = document.getElementById('wifiBadge');
+  const val   = document.getElementById('wifiValue');
+  if (!badge || !val) return;
+
+  const rssi = data.wifiRssi != null ? data.wifiRssi : 0;
+
+  badge.classList.remove('wifi-ok', 'wifi-weak', 'wifi-none');
+
+  if (rssi === 0) {
+    badge.classList.add('wifi-none');
+    badge.style.color = '#ef4444';
+    val.style.color   = '#ef4444';
+    val.textContent   = 'Hors ligne';
+  } else if (rssi < -80) {
+    badge.classList.add('wifi-none');
+    badge.style.color = '#ef4444';
+    val.style.color   = '#ef4444';
+    val.textContent   = rssi + ' dBm';
+  } else if (rssi < -65) {
+    badge.classList.add('wifi-weak');
+    badge.style.color = '#f59e0b';
+    val.style.color   = '#f59e0b';
+    val.textContent   = rssi + ' dBm';
+  } else {
+    badge.classList.add('wifi-ok');
+    badge.style.color = '#10b981';
+    val.style.color   = '#10b981';
+    val.textContent   = rssi + ' dBm';
+  }
+}
 
 // ============================================================
 // 5. VISUEL FILTRATION AUTOMATIQUE

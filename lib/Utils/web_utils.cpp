@@ -102,6 +102,7 @@ void startWebServer()
             json += "\"boostDuration\":"  + String(getBoostDurationMinutes()) + ",";
             json += "\"pumpBlocked\":"   + String(isPumpBlocked()   ? "true" : "false") + ",";
             json += "\"feedbackFault\":"  + String(isFeedbackFault() ? "true" : "false") + ",";
+            json += "\"wifiRssi\":"       + String(WiFi.status() == WL_CONNECTED ? (int)WiFi.RSSI() : 0) + ",";
             json += "\"modeHistory\":"    + mhToJSON();
             json += "}";
         }

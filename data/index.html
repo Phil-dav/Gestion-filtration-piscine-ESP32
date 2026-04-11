@@ -122,6 +122,28 @@
       font-weight: 700; color: #4a6888; transition: color 0.4s;
     }
 
+    /* ── Vignette WiFi ────────────────────────────────────────── */
+    .wifi-badge {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 12px;
+      border: 1px solid #1a3050; border-radius: 8px;
+      background: rgba(255,255,255,0.03);
+      transition: border-color 0.4s, box-shadow 0.4s;
+    }
+    .wifi-badge.wifi-ok   { border-color: #10b981; box-shadow: 0 0 10px rgba(16,185,129,0.2); }
+    .wifi-badge.wifi-weak { border-color: #f59e0b; box-shadow: 0 0 10px rgba(245,158,11,0.2); }
+    .wifi-badge.wifi-none { border-color: #ef4444; box-shadow: 0 0 10px rgba(239,68,68,0.15); }
+    .wifi-icon  { width: 22px; height: 22px; flex-shrink: 0; }
+    .wifi-info  { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
+    .wifi-label {
+      font-size: 0.55rem; color: #4a6888;
+      text-transform: uppercase; letter-spacing: 1.5px; font-family: Arial, sans-serif;
+    }
+    .wifi-value {
+      font-family: 'Orbitron', monospace; font-size: 0.82rem;
+      font-weight: 700; color: #4a6888; transition: color 0.4s;
+    }
+
     /* ── Layout principal ────────────────────────────────────── */
     .dashboard {
       display: grid;
@@ -912,6 +934,21 @@
         <div class="gps-info">
           <span class="gps-label">Satellite GPS</span>
           <span class="gps-value" id="gpsValue">Recherche…</span>
+        </div>
+      </div>
+
+      <!-- Vignette WiFi -->
+      <div class="wifi-badge wifi-none" id="wifiBadge">
+        <svg class="wifi-icon" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-linecap="round">
+          <circle cx="12" cy="20.5" r="1.5" fill="currentColor" stroke="none"/>
+          <path d="M9.17 17.67 A4 4 0 0 1 14.83 17.67"  stroke-width="1.8"/>
+          <path d="M6.34 14.84 A8 8 0 0 1 17.66 14.84"  stroke-width="1.8"/>
+          <path d="M3.51 12.01 A12 12 0 0 1 20.49 12.01" stroke-width="1.8"/>
+        </svg>
+        <div class="wifi-info">
+          <span class="wifi-label">WiFi</span>
+          <span class="wifi-value" id="wifiValue">Hors ligne</span>
         </div>
       </div>
 
